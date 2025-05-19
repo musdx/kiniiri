@@ -1,52 +1,44 @@
-use eframe::egui;
+use gio::prelude::*;
+use gtk::prelude::*;
+use gtk4 as gtk;
+use gtk4_layer_shell::{Edge, Layer, LayerShell};
 
-fn main() -> eframe::Result {
-    let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size([10000.0, 10000.0])
-            .with_always_on_top()
-            .with_mouse_passthrough(true)
-            .with_transparent(true)
-            .with_decorations(false),
-        ..Default::default()
-    };
-    eframe::run_native(
-        "vpetty",
-        options,
-        Box::new(|cc| {
-            egui_extras::install_image_loaders(&cc.egui_ctx);
+// https://github.com/wmww/gtk-layer-shell/blob/master/examples/simple-example.c
+fn activate(application: &gtk::Application) {
+    // Create a normal GTK window however you like
+    let window = gtk::Window::new();
+    window.set_application(Some(application));
 
-            Ok(Box::<MyApp>::default())
-        }),
-    )
+    // Before the window is first realized, set it up to be a layer surface
+    window.init_layer_shell();
+
+    // Display above normal windows
+    window.set_layer(Layer::Overlay);
+    let anchors = [
+        (Edge::Left, true),
+        (Edge::Right, true),
+        (Edge::Top, false),
+        (Edge::Bottom, true),
+    ];
+
+    for (anchor, state) in anchors {
+        window.set_anchor(anchor, state);
+    }
+    let image = gtk::Image::from_file("cat.webp");
+    image.set_size_request(200, 200);
+    let boxs = gtk::Box::new(gtk::Orientation::Vertical, 10);
+    boxs.append(&image);
+    window.set_child(Some(&boxs));
+
+    window.show()
 }
 
-struct MyApp {}
+fn main() {
+    let application = gtk::Application::new(Some("blue.likely.kiniiri"), Default::default());
 
-impl Default for MyApp {
-    fn default() -> Self {
-        Self {}
-    }
-}
+    application.connect_activate(|app| {
+        activate(app);
+    });
 
-impl eframe::App for MyApp {
-    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
-        egui::Rgba::TRANSPARENT.to_array()
-    }
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(
-            egui::WindowLevel::AlwaysOnTop,
-        ));
-        ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(
-            egui::WindowLevel::AlwaysOnTop,
-        ));
-        egui::Window::new("Pet")
-            .frame(egui::Frame::NONE)
-            .title_bar(false)
-            .default_open(true)
-            .resizable(false)
-            .show(ctx, |ui| {
-                ui.image(egui::include_image!("cat.webp"));
-            });
-    }
+    application.run();
 }
